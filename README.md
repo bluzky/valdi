@@ -111,7 +111,7 @@ iex(13)> Valdi.validate("email@g.c", type: :string, format: ~r/.+@.+\.[a-z]{2,10
 {:error, "format not matched"}
 iex(18)> Valdi.validate("123", format: ~r/\d{3}/)
 :ok
-``**
+```
 
 **Validate number**
 
@@ -130,7 +130,7 @@ iex(20)> Valdi.validate(12, number: [min: 0, max: 10])
 iex(21)> Valdi.validate(12, number: [equal_to: 10])
 {:error, "must be equal to 10"}
 iex(22)>
-``**
+```
 
 **Validate string and enumerable length**
 
@@ -146,7 +146,7 @@ iex(26)> Valdi.validate({"one", "two"}, length: [min: 3])
 {:error, "length must be greater than or equal to 3"}
 iex(27)> Valdi.validate(50, length: [min: 2])
 {:error, "length check supports only lists, binaries, maps and tuples"}
-``**
+```
 
 **Custom validation function**
 
