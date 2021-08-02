@@ -75,7 +75,7 @@ defmodule Valdi do
     end)
     |> case do
       {:ok, _} -> :ok
-      err -> err
+      {:error, errors} -> {:error, Enum.reverse(errors)}
     end
   end
 
