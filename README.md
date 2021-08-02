@@ -1,6 +1,6 @@
 # Valdi
 
-[![Build Status](https://github.com/bluzky/valdi/workflows/Elixir%20CI/badge.svg)](https://github.com/bluzky/valdi/actions) [![Coverage Status](https://coveralls.io/repos/github/bluzky/valdi/badge.svg?branch=master)](https://coveralls.io/github/bluzky/valdi?branch=master) [![Hex Version](https://img.shields.io/hexpm/v/valdi.svg)](https://hex.pm/packages/valdi) [![docs](https://img.shields.io/badge/docs-hexpm-blue.svg)](https://hexdocs.pm/valdi/)
+[![Build Status](https://github.com/bluzky/valdi/workflows/Elixir%20CI/badge.svg)](https://github.com/bluzky/valdi/actions) [![Coverage Status](https://coveralls.io/repos/github/bluzky/valdi/badge.svg?branch=main)](https://coveralls.io/github/bluzky/valdi?branch=main) [![Hex Version](https://img.shields.io/hexpm/v/valdi.svg)](https://hex.pm/packages/valdi) [![docs](https://img.shields.io/badge/docs-hexpm-blue.svg)](https://hexdocs.pm/valdi/)
 
 **Data validation for Elixir**
 
