@@ -4,14 +4,14 @@ defmodule Valdi.MixProject do
   def project do
     [
       app: :valdi,
-      version: "0.1.1",
+      version: "0.1.2",
       elixir: "~> 1.10",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       docs: docs(),
       name: "Valdi",
       description: description(),
-      source_url: "https://github.com/onpointvn/valdi",
+      source_url: "https://github.com/bluzky/valdi",
       package: package()
     ]
   end
@@ -34,7 +34,7 @@ defmodule Valdi.MixProject do
     [
       maintainers: ["Dung Nguyen"],
       licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/onpointvn/valdi"}
+      links: %{"GitHub" => "https://github.com/bluzky/valdi"}
     ]
   end
 
