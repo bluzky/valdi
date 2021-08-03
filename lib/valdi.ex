@@ -7,7 +7,7 @@ defmodule Valdi do
   - validate number
   - validate string format/pattern
   - validate custom function
-  - validate allow_nil or not
+  - validate required (not nil) or not
 
   Each of these validations can be used separatedly
 
@@ -50,6 +50,7 @@ defmodule Valdi do
   """
   @spec validate(any(), keyword()) :: :ok | error
   def validate(value, validators) do
+    validators = sort_validator(validators)
     do_validate(value, validators, :ok)
   end
 
@@ -65,6 +66,8 @@ defmodule Valdi do
 
   @spec validate_list(list(), keyword()) :: :ok | {:error, list()}
   def validate_list(items, validators) do
+    validators = sort_validator(validators)
+
     items
     |> Enum.with_index()
     |> Enum.reduce({:ok, []}, fn {value, index}, {status, acc} ->
@@ -104,6 +107,8 @@ defmodule Valdi do
   def validate_map(data, validations_spec) do
     validations_spec
     |> Enum.reduce({:ok, []}, fn {key, validators}, {status, acc} ->
+      validators = sort_validator(validators)
+
       case do_validate(Map.get(data, key), validators, :ok) do
         :ok -> {status, acc}
         {:error, message} -> {:error, [{key, message} | acc]}
@@ -115,6 +120,15 @@ defmodule Valdi do
     end
   end
 
+  # prioritize checking
+  # `required` -> `type` -> others
+  defp sort_validator(validators) do
+    {required, validators} = Keyword.pop(validators, :required, false)
+    {type, validators} = Keyword.pop(validators, :type, :any)
+    validators = [{:type, type} | validators]
+    [{:required, required} | validators]
+  end
+
   defp do_validate(_, [], acc), do: acc
 
   defp do_validate(value, [h | t] = _validators, acc) do
@@ -124,14 +138,11 @@ defmodule Valdi do
     end
   end
 
-  defp do_validate(value, {:allow_nil, allow_nil}) when is_boolean(allow_nil) do
-    if not is_nil(value) or allow_nil do
-      :ok
-    else
-      {:error, "cannot be nil"}
-    end
-  end
+  # validate required need to check nil
+  defp do_validate(value, {:required = validator, opts}),
+    do: get_validator(validator).(value, opts)
 
+  # other validation is skipped if value is nil
   defp do_validate(nil, _), do: :ok
   defp do_validate(value, {:func, func}), do: func.(value)
 
@@ -143,6 +154,7 @@ defmodule Valdi do
   end
 
   defp get_validator(:type), do: &validate_type/2
+  defp get_validator(:required), do: &validate_required/2
   defp get_validator(:format), do: &validate_format/2
   defp get_validator(:number), do: &validate_number/2
   defp get_validator(:length), do: &validate_length/2
@@ -207,6 +219,7 @@ defmodule Valdi do
   def validate_type(value, :atom) when is_atom(value), do: :ok
   def validate_type(value, :function) when is_function(value), do: :ok
   def validate_type(value, :map) when is_map(value), do: :ok
+  def validate_type(_value, :any), do: :ok
 
   def validate_type(value, {:array, type}) when is_list(value) do
     array(value, &validate_type(&1, type))
@@ -242,6 +255,27 @@ defmodule Valdi do
         err
     end
   end
+
+  @doc """
+  Validate value if value is not nil. This function can receive a function to dynamicall calculate required or not.
+
+  ```elixir
+  iex(1)> Valdi.validate_required(nil, true)
+  {:error, "is required"}
+  iex(2)> Valdi.validate_required(1, true)
+  :ok
+  iex(3)> Valdi.validate_required(nil, false)
+  :ok
+  iex(4)> Valdi.validate_required(nil, fn -> 2 == 2 end)
+  {:error, "is required"}
+  ```
+  """
+
+  def validate_required(value, func) when is_function(func, 0),
+    do: validate_required(value, func.())
+
+  def validate_required(nil, true), do: {:error, "is required"}
+  def validate_required(_, _), do: :ok
 
   @doc """
   Validate number value

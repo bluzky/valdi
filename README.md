@@ -27,7 +27,7 @@ Some helpers function to do validate data
 - validate number
 - validate string format/pattern
 - validate custom function
-- validate allow_nil or not
+- validate required(not nil) or not
 
 ## Usage
 
@@ -95,6 +95,21 @@ iex(13)> Valdi.validate(["one", "two", "three"],  type: :map)
 {:error, "is not a map"}
 iex(14)>
 ```
+
+**Validate required**
+ Validate value if value is not nil. This function can receive a function to dynamicall calculate required or not.
+
+ ```elixir
+  iex(1)> Magik.Validator.validate_required(nil, true)
+  {:error, "is required"}
+  iex(2)> Magik.Validator.validate_required(1, true)
+  :ok
+  iex(3)> Magik.Validator.validate_required(nil, false)
+  :ok
+  iex(4)> Magik.Validator.validate_required(nil, fn -> 2 == 2 end)
+  {:error, "is required"}
+  ```
+
 
 **Validate inclusion and exclusion**
 

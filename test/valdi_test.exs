@@ -52,12 +52,12 @@ defmodule ValdiTest do
     end)
   end
 
-  test "validate allow_nil=false with not nil should ok" do
-    assert :ok = Valdi.validate("a string", type: :string, allow_nil: false)
+  test "validate required=true with not nil should ok" do
+    assert :ok = Valdi.validate("a string", type: :string, required: true)
   end
 
-  test "validate allow_nil=false with nil should error" do
-    assert {:error, "cannot be nil"} = Valdi.validate(nil, type: :string, allow_nil: false)
+  test "validate required=true with nil should error" do
+    assert {:error, "is required"} = Valdi.validate(nil, type: :string, required: true)
   end
 
   test "validate inclusion with valid value should ok" do
