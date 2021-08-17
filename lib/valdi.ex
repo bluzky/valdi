@@ -12,20 +12,20 @@ defmodule Valdi do
   Each of these validations can be used separatedly
 
   ```elixir
-  iex(2)>   Valdi.validate_type(10, :integer)
+  iex> Valdi.validate_type(10, :integer)
   :ok
-  iex(3)>   Valdi.validate_type(10, :string)
+  iex> Valdi.validate_type(10, :string)
   {:error, "is not a string"}
-  iex(3)>   Valdi.validate_number(9, [min: 10, max: 20])
+  iex> Valdi.validate_number(9, [min: 10, max: 20])
   {:error, "must be greater than or equal to 10"}
   ```
 
   Or you can combine multiple condition at one
   ```elixir
-  iex(12)> Valdi.validate(10, type: :integer, number: [min: 10, max: 20])
+  iex> Valdi.validate(10, type: :integer, number: [min: 10, max: 20])
   :ok
-  iex(13)> Valdi.validate("email@g.c", type: :string, format: ~r/.+@.+\.[a-z]{2,10}/)
-  {:error, "format not matched"}
+  iex> Valdi.validate("email@g.c", type: :string, format: ~r/.+@.+\.[a-z]{2,10}/)
+  {:error, "does not match format"}
   ```
   """
 
@@ -35,8 +35,8 @@ defmodule Valdi do
   Validate value against list of validations.
 
   ```elixir
-  iex(13)> Valdi.validate("email@g.c", type: :string, format: ~r/.+@.+\.[a-z]{2,10}/)
-  {:error, "format not matched"}
+  iex> Valdi.validate("email@g.c", type: :string, format: ~r/.+@.+\.[a-z]{2,10}/)
+  {:error, "does not match format"}
   ```
 
   **All supported validations**:
@@ -59,7 +59,7 @@ defmodule Valdi do
   In case of error `{:error, errors}`, `errors` is list of error detail for all error item includes `[index, message]`
 
   ```elixir
-  iex(51)> Valdi.validate_list([1,2,3], type: :integer, number: [min: 2])
+  iex> Valdi.validate_list([1,2,3], type: :integer, number: [min: 2])
   {:error, [[0, "must be greater than or equal to 2"]]}
   ```
   """
@@ -86,20 +86,17 @@ defmodule Valdi do
   Validate map value with given map specification.
   Validation spec is a map
 
-  ```elixir
-  validation_spec = %{
-    email: [type: :string, allow_nil: false],
-    password: [type: :string, length: [min: 8]],
-    age: [type: :integer, number: [min: 16, max: 60]]
-  }
-  ```
-
   `validate_map` use the key from validation to extract value from input data map and then validate value against the validators for that key.
 
   In case of error, the error detail is a map of error for each key.
 
   ```elixir
-  iex(56)> Valdi.validate_map(%{name: "dzung", password: "123456", emal: "ddd@example.com", age: 28}, validation_spec)
+  iex> validation_spec = %{
+  ...>  email: [type: :string, required: true],
+  ...>  password: [type: :string, length: [min: 8]],
+  ...>  age: [type: :integer, number: [min: 16, max: 60]]
+  ...>  }
+  iex> Valdi.validate_map(%{name: "dzung", password: "123456", email: "ddd@example.com", age: 28}, validation_spec)
   {:error, %{password: "length must be greater than or equal to 8"}}
   ```
   """
@@ -183,9 +180,9 @@ defmodule Valdi do
   Validate data types.
 
   ```elixir
-  iex(1)> Valdi.validate_type("a string", :string)
+  iex> Valdi.validate_type("a string", :string)
   :ok
-  iex(2)> Valdi.validate_type("a string", :number)
+  iex> Valdi.validate_type("a string", :number)
   {:error, "is not a number"}
   ```
 
@@ -260,13 +257,13 @@ defmodule Valdi do
   Validate value if value is not nil. This function can receive a function to dynamicall calculate required or not.
 
   ```elixir
-  iex(1)> Valdi.validate_required(nil, true)
+  iex> Valdi.validate_required(nil, true)
   {:error, "is required"}
-  iex(2)> Valdi.validate_required(1, true)
+  iex> Valdi.validate_required(1, true)
   :ok
-  iex(3)> Valdi.validate_required(nil, false)
+  iex> Valdi.validate_required(nil, false)
   :ok
-  iex(4)> Valdi.validate_required(nil, fn -> 2 == 2 end)
+  iex> Valdi.validate_required(nil, fn -> 2 == 2 end)
   {:error, "is required"}
   ```
   """
@@ -281,9 +278,9 @@ defmodule Valdi do
   Validate number value
 
   ```elixir
-  iex(3)> Valdi.validate_number(12, min: 10, max: 12)
+  iex> Valdi.validate_number(12, min: 10, max: 12)
   :ok
-  iex(4)> Valdi.validate_number(12, min: 15)
+  iex> Valdi.validate_number(12, min: 15)
   {:error, "must be greater than or equal to 15"}
   ```
 
@@ -368,9 +365,9 @@ defmodule Valdi do
   Check if length of value match given conditions. Length condions are the same with `validate_number/2`
 
   ```elixir
-  iex(15)> Valdi.validate_length([1], min: 2)
+  iex> Valdi.validate_length([1], min: 2)
   {:error, "length must be greater than or equal to 2"}
-  iex(16)> Valdi.validate_length("hello", equal_to: 5)
+  iex> Valdi.validate_length("hello", equal_to: 5)
   :ok
   ```
 
@@ -407,9 +404,9 @@ defmodule Valdi do
   Checks whether a string match the given regex.
 
   ```elixir
-  iex(11)> Valdi.validate_format("year: 2001", ~r/year:\s\d{4}/)
+  iex> Valdi.validate_format("year: 2001", ~r/year:\\s\\d{4}/)
   :ok
-  iex(12)> Valdi.validate_format("hello", ~r/\d+/)
+  iex> Valdi.validate_format("hello", ~r/\d+/)
   {:error, "does not match format"}
   ```
   """
@@ -427,13 +424,13 @@ defmodule Valdi do
   Check if value is included in the given enumerable.
 
   ```elixir
-  iex(21)> Valdi.validate_inclusion(1, [1, 2])
+  iex> Valdi.validate_inclusion(1, [1, 2])
   :ok
-  iex(22)> Valdi.validate_inclusion(1, {1, 2})
+  iex> Valdi.validate_inclusion(1, {1, 2})
   {:error, "given condition does not implement protocol Enumerable"}
-  iex(23)> Valdi.validate_inclusion(1, %{a: 1, b: 2})
+  iex> Valdi.validate_inclusion(1, %{a: 1, b: 2})
   {:error, "not be in the inclusion list"}
-  iex(24)> Valdi.validate_inclusion({:a, 1}, %{a: 1, b: 2})
+  iex> Valdi.validate_inclusion({:a, 1}, %{a: 1, b: 2})
   :ok
   ```
   """

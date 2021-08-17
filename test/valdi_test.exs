@@ -6,6 +6,7 @@ end
 
 defmodule ValdiTest do
   use ExUnit.Case
+  doctest Valdi
 
   alias ValdiTest.User
 
