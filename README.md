@@ -178,3 +178,12 @@ func(any()):: :ok | {:error, message::String.t()}
 iex(32)> Valdi.validate(12, func: fn val -> if is_binary(val), do: :ok, else: {:error, "not a string"} end)
 {:error, "not a string"}
 ```
+
+**Validate each array element**
+Support all above validator to validate each array element
+
+```elixir
+iex(32)> Valdi.validate([1, 10, 20], each: [number: [min: 10]])
+
+{:error, [[0, "must be greater than or equal to 10"]]}
+```

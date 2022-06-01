@@ -29,7 +29,7 @@ defmodule ValdiTest do
     [:array, 10, :error],
     [:atom, :hihi, :ok],
     [:atom, "string", :error],
-    [:function, &User.dumb/0, :ok],
+    [:function, &User.dumb/1, :ok],
     [:function, "not func", :error],
     [:keyword, [limit: 12], :ok],
     [:keyword, [1, 2], :error],
@@ -51,6 +51,10 @@ defmodule ValdiTest do
         assert {:error, _} = rs
       end
     end)
+  end
+
+  test "validate list with invalid item type" do
+    assert {:error, "is invalid"} = Valdi.validate(["hi", 10, 13], type: {:array, :string})
   end
 
   test "validate required=true with not nil should ok" do
@@ -238,5 +242,14 @@ defmodule ValdiTest do
   test "validate list with invalid data" do
     assert {:error, [[0, "is not a number"], [1, "must be greater than or equal to 11"]]} =
              Valdi.validate_list(["hi", 10, 13], type: :number, number: [min: 11])
+  end
+
+  test "validate each for list data any item error" do
+    assert {:error, [[1, "must be greater than or equal to 11"]]} =
+             Valdi.validate([12, 10, 13], type: {:array, :number}, each: [number: [min: 11]])
+  end
+
+  test "validate each for list data success" do
+    assert :ok = Valdi.validate([8, 10, 9], type: {:array, :number}, each: [number: [max: 11]])
   end
 end
