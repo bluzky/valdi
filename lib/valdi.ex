@@ -47,6 +47,7 @@ defmodule Valdi do
   - `in`: validate inclusion
   - `not_in`: validate exclusion
   - `func`: custom validation function follows spec `func(any()):: :ok | {:error, message::String.t()}`
+  - `each`: validate each item in list with given validator. Supports all above validator
   """
   @spec validate(any(), keyword()) :: :ok | error
   def validate(value, validators) do
@@ -157,6 +158,7 @@ defmodule Valdi do
   defp get_validator(:length), do: &validate_length/2
   defp get_validator(:in), do: &validate_inclusion/2
   defp get_validator(:not_in), do: &validate_exclusion/2
+  defp get_validator(:each), do: &validate_each_item/2
   defp get_validator(name), do: {:error, "validate_#{name} is not support"}
 
   @doc """
@@ -219,7 +221,10 @@ defmodule Valdi do
   def validate_type(_value, :any), do: :ok
 
   def validate_type(value, {:array, type}) when is_list(value) do
-    array(value, &validate_type(&1, type))
+    case array(value, &validate_type(&1, type)) do
+      :ok -> :ok
+      _ -> {:error, "is invalid"}
+    end
   end
 
   def validate_type([] = _check_item, :keyword), do: :ok
@@ -458,6 +463,17 @@ defmodule Valdi do
       end
     else
       {:error, "given condition does not implement protocol Enumerable"}
+    end
+  end
+
+  @doc """
+  Apply validation for each array item
+  """
+  def validate_each_item(list, validations) do
+    if is_list(list) do
+      validate_list(list, validations)
+    else
+      {:error, "each validation only support array type"}
     end
   end
 end
