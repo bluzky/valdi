@@ -161,6 +161,8 @@ defmodule Valdi do
   defp get_validator(:in), do: &validate_inclusion/2
   defp get_validator(:not_in), do: &validate_exclusion/2
   defp get_validator(:each), do: &validate_each_item/2
+  defp get_validator(:decimal), do: &validate_decimal/2
+
   defp get_validator(name), do: {:error, "validate_#{name} is not support"}
 
   @doc """
@@ -220,6 +222,7 @@ defmodule Valdi do
   def validate_type(value, :atom) when is_atom(value), do: :ok
   def validate_type(value, :function) when is_function(value), do: :ok
   def validate_type(value, :map) when is_map(value), do: :ok
+  def validate_type(%Decimal{} = _value, :decimal), do: :ok
   def validate_type(_value, :any), do: :ok
 
   def validate_type(value, {:array, type}) when is_list(value) do
@@ -494,7 +497,7 @@ defmodule Valdi do
   end
 
 
-  def validate_decimal(decimal, {:equal_to, %{coef: _} = check_value}) do
+  def validate_decimal(decimal, {:equal_to, %Decimal{} = check_value}) do
     if Decimal.eq?(decimal, check_value) do
       :ok
     else
@@ -502,7 +505,7 @@ defmodule Valdi do
     end
   end
 
-  def validate_decimal(decimal, {:greater_than, %{coef: _} = check_value}) do
+  def validate_decimal(decimal, {:greater_than, %Decimal{} = check_value}) do
     if Decimal.gt?(decimal, check_value) do
       :ok
     else
@@ -510,7 +513,7 @@ defmodule Valdi do
     end
   end
 
-  def validate_decimal(decimal, {:greater_than_or_equal_to, %{coef: _} = check_value}) do
+  def validate_decimal(decimal, {:greater_than_or_equal_to, %Decimal{} = check_value}) do
     if Decimal.gt?(decimal, check_value) or Decimal.eq?(decimal, check_value) do
       :ok
     else
@@ -522,7 +525,7 @@ defmodule Valdi do
     validate_decimal(decimal, {:greater_than_or_equal_to, check_value})
   end
 
-  def validate_decimal(decimal, {:less_than, %{coef: _} = check_value}) do
+  def validate_decimal(decimal, {:less_than, %Decimal{} = check_value}) do
     if Decimal.lt?(decimal, check_value) do
       :ok
     else
@@ -530,7 +533,7 @@ defmodule Valdi do
     end
   end
 
-  def validate_decimal(decimal, {:less_than_or_equal_to, %{coef: _} = check_value}) do
+  def validate_decimal(decimal, {:less_than_or_equal_to, %Decimal{} = check_value}) do
     if Decimal.lt?(decimal, check_value) or Decimal.eq?(decimal, check_value) do
       :ok
     else
@@ -538,11 +541,11 @@ defmodule Valdi do
     end
   end
 
-  def validate_decimal(decimal, {:max, %{coef: _} = check_value}) do
+  def validate_decimal(decimal, {:max, %Decimal{} = check_value}) do
     validate_decimal(decimal, {:less_than_or_equal_to, check_value})
   end
 
-  def validate_decimal(_decimal, {check, %{coef: _} = _check_value}) do
+  def validate_decimal(_decimal, {check, %Decimal{} = _check_value}) do
     {:error, "unknown check '#{check}'"}
   end
 
