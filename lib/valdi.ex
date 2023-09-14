@@ -492,7 +492,7 @@ defmodule Valdi do
             error
       end)
     else
-      {:error, "must be a decimal"}
+      {:error, "must be a Decimal.t() type"}
     end
   end
 
@@ -550,7 +550,7 @@ defmodule Valdi do
   end
 
   def validate_decimal(_decimal, {_check, check_value}) do
-    {:error, "#{check_value} must be a decimal"}
+    {:error, "#{check_value} must be a Decimal.t() type"}
   end
 
 end
