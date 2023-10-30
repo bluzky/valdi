@@ -37,7 +37,10 @@ defmodule ValdiTest do
     [User, %{}, :error],
     [{:array, User}, [%User{email: ""}], :ok],
     [{:array, User}, [], :ok],
-    [{:array, User}, %{}, :error]
+    [{:array, User}, %{}, :error],
+    [:decimal, Decimal.new("1.0"), :ok],
+    [:decimal, "1.0", :error],
+    [:decimal, 1.0, :error]
   ]
 
   test "validate type" do
@@ -251,5 +254,41 @@ defmodule ValdiTest do
 
   test "validate each for list data success" do
     assert :ok = Valdi.validate([8, 10, 9], type: {:array, :number}, each: [number: [max: 11]])
+  end
+
+  @decimal_tests [
+    [:equal_to, Decimal.new("10.0"), Decimal.new("10.0"), :ok],
+    [:equal_to, Decimal.new("10.0"), Decimal.new("11.0"), :error],
+    [:greater_than_or_equal_to, Decimal.new("10.0"), Decimal.new("10.0"), :ok],
+    [:greater_than_or_equal_to, Decimal.new("10.0"), Decimal.new("11.0"), :ok],
+    [:greater_than_or_equal_to, Decimal.new("10.0"), Decimal.new("9.0"), :error],
+    [:min, Decimal.new("10.0"), Decimal.new("10.0"), :ok],
+    [:min, Decimal.new("10.0"), Decimal.new("11.0"), :ok],
+    [:min, Decimal.new("10.0"), Decimal.new("0.0"), :error],
+    [:greater_than, Decimal.new("10.0"), Decimal.new("11.0"), :ok],
+    [:greater_than, Decimal.new("10.0"), Decimal.new("10.0"), :error],
+    [:greater_than, Decimal.new("10.0"), Decimal.new("9.0"), :error],
+    [:less_than, Decimal.new("10.0"), Decimal.new("9.0"), :ok],
+    [:less_than, Decimal.new("10.0"), Decimal.new("10.0"), :error],
+    [:less_than, Decimal.new("10.0"), Decimal.new("11.0"), :error],
+    [:less_than_or_equal_to, Decimal.new("10.0"), Decimal.new("9.0"), :ok],
+    [:less_than_or_equal_to, Decimal.new("10.0"), Decimal.new("10.0"), :ok],
+    [:less_than_or_equal_to, Decimal.new("10.0"), Decimal.new("11.0"), :error],
+    [:max, Decimal.new("10.0"), Decimal.new("9.0"), :ok],
+    [:max, Decimal.new("10.0"), Decimal.new("10.0"), :ok],
+    [:max, Decimal.new("10.0"), Decimal.new("11.0"), :error],
+    [:unknown_check, Decimal.new("10.0"), Decimal.new("11.0"), :error],
+    [:min, 11, Decimal.new("11.0"), :error],
+  ]
+  test "validate decimal" do
+    for [condition, value, actual_value, expect] <- @decimal_tests do
+      rs = Valdi.validate(actual_value, type: :decimal, decimal: [{condition, value}])
+
+      if expect == :ok do
+        assert :ok = rs
+      else
+        assert {:error, _} = rs
+      end
+    end
   end
 end
