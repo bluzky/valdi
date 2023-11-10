@@ -28,6 +28,7 @@ Some helpers function to do validate data
 - validate string format/pattern
 - validate custom function
 - validate required(not nil) or not
+- validate decimal (thanks @madclaws)
 
 ## Usage
 
@@ -148,6 +149,14 @@ iex(20)> Valdi.validate(12, number: [min: 0, max: 10])
 iex(21)> Valdi.validate(12, number: [equal_to: 10])
 {:error, "must be equal to 10"}
 iex(22)>
+```
+
+**Validate decimal**
+Similar to validate number
+
+```elixir
+iex(19)> Valdi.validate(Decimal.new("10.0"), decimal: [greater_than: Decimal.new("0.0"), less_than: Decimal.new("20.0")])
+:ok
 ```
 
 **Validate string and enumerable length**
