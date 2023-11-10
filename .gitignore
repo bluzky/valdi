@@ -26,3 +26,5 @@ valdi-*.tar
 /tmp/
 
 .DS_Store
+
+mix.lock
