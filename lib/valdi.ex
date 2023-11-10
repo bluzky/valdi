@@ -8,6 +8,7 @@ defmodule Valdi do
   - validate string format/pattern
   - validate custom function
   - validate required (not nil) or not
+  - validate decimal
 
   Each of these validations can be used separatedly
 
@@ -28,6 +29,7 @@ defmodule Valdi do
   {:error, "does not match format"}
   ```
   """
+  require Decimal
 
   @type error :: {:error, String.t()}
 
@@ -159,6 +161,8 @@ defmodule Valdi do
   defp get_validator(:in), do: &validate_inclusion/2
   defp get_validator(:not_in), do: &validate_exclusion/2
   defp get_validator(:each), do: &validate_each_item/2
+  defp get_validator(:decimal), do: &validate_decimal/2
+
   defp get_validator(name), do: {:error, "validate_#{name} is not support"}
 
   @doc """
@@ -218,6 +222,7 @@ defmodule Valdi do
   def validate_type(value, :atom) when is_atom(value), do: :ok
   def validate_type(value, :function) when is_function(value), do: :ok
   def validate_type(value, :map) when is_map(value), do: :ok
+  def validate_type(%Decimal{} = _value, :decimal), do: :ok
   def validate_type(_value, :any), do: :ok
 
   def validate_type(value, {:array, type}) when is_list(value) do
@@ -476,4 +481,76 @@ defmodule Valdi do
       {:error, "each validation only support array type"}
     end
   end
+
+  @spec validate_decimal(Decimal.t(), keyword()) :: :ok | error()
+  def validate_decimal(value, checks) when is_list(checks) do
+    if Decimal.is_decimal(value) do
+      Enum.reduce(checks, :ok, fn
+         check, :ok ->
+          validate_decimal(value, check)
+          _, error ->
+            error
+      end)
+    else
+      {:error, "must be a Decimal.t() type"}
+    end
+  end
+
+
+  def validate_decimal(decimal, {:equal_to, %Decimal{} = check_value}) do
+    if Decimal.eq?(decimal, check_value) do
+      :ok
+    else
+      {:error, "must be equal to #{check_value}"}
+    end
+  end
+
+  def validate_decimal(decimal, {:greater_than, %Decimal{} = check_value}) do
+    if Decimal.gt?(decimal, check_value) do
+      :ok
+    else
+      {:error, "must be greater than #{check_value}"}
+    end
+  end
+
+  def validate_decimal(decimal, {:greater_than_or_equal_to, %Decimal{} = check_value}) do
+    if Decimal.gt?(decimal, check_value) or Decimal.eq?(decimal, check_value) do
+      :ok
+    else
+      {:error, "must be greater than or equal to #{check_value}"}
+    end
+  end
+
+  def validate_decimal(decimal, {:min, check_value}) do
+    validate_decimal(decimal, {:greater_than_or_equal_to, check_value})
+  end
+
+  def validate_decimal(decimal, {:less_than, %Decimal{} = check_value}) do
+    if Decimal.lt?(decimal, check_value) do
+      :ok
+    else
+      {:error, "must be lesser than #{check_value}"}
+    end
+  end
+
+  def validate_decimal(decimal, {:less_than_or_equal_to, %Decimal{} = check_value}) do
+    if Decimal.lt?(decimal, check_value) or Decimal.eq?(decimal, check_value) do
+      :ok
+    else
+      {:error, "must be lesser than or equal to #{check_value}"}
+    end
+  end
+
+  def validate_decimal(decimal, {:max, %Decimal{} = check_value}) do
+    validate_decimal(decimal, {:less_than_or_equal_to, check_value})
+  end
+
+  def validate_decimal(_decimal, {check, %Decimal{} = _check_value}) do
+    {:error, "unknown check '#{check}'"}
+  end
+
+  def validate_decimal(_decimal, {_check, check_value}) do
+    {:error, "#{check_value} must be a Decimal.t() type"}
+  end
+
 end
