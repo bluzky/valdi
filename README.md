@@ -83,6 +83,11 @@ iex(56)> Valdi.validate_map(%{name: "dzung", password: "123456", emal: "ddd@exam
 - `:atom`
 - `:function`
 - `:map`
+- `:date`
+- `:time`
+- `:datetime`
+- `:naive_datetime`
+- `:utc_datetime`
 - `{:array, type}` array of item similar to Ecto.Schema 
 - `:keyword`
 - `struct` for example: `User`. it's the struct module name

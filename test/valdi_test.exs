@@ -40,7 +40,15 @@ defmodule ValdiTest do
     [{:array, User}, %{}, :error],
     [:decimal, Decimal.new("1.0"), :ok],
     [:decimal, "1.0", :error],
-    [:decimal, 1.0, :error]
+    [:decimal, 1.0, :error],
+    [:date, ~D[2023-10-11], :ok],
+    [:date, "1.0", :error],
+    [:datetime, ~U[2023-10-11 09:00:00Z], :ok],
+    [:datetime, "1.0", :error],
+    [:naive_datetime, ~N[2023-10-11 09:10:00], :ok],
+    [:naive_datetime, "1.0", :error],
+    [:time, ~T[09:10:00], :ok],
+    [:time, "1.0", :error]
   ]
 
   test "validate type" do
@@ -278,7 +286,7 @@ defmodule ValdiTest do
     [:max, Decimal.new("10.0"), Decimal.new("10.0"), :ok],
     [:max, Decimal.new("10.0"), Decimal.new("11.0"), :error],
     [:unknown_check, Decimal.new("10.0"), Decimal.new("11.0"), :error],
-    [:min, 11, Decimal.new("11.0"), :error],
+    [:min, 11, Decimal.new("11.0"), :error]
   ]
   test "validate decimal" do
     for [condition, value, actual_value, expect] <- @decimal_tests do

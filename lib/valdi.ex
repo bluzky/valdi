@@ -31,6 +31,18 @@ defmodule Valdi do
   """
   require Decimal
 
+  @supported_validations [
+    :type,
+    :required,
+    :format,
+    :number,
+    :length,
+    :in,
+    :not_in,
+    :func,
+    :each,
+    :decimal
+  ]
   @type error :: {:error, String.t()}
 
   @doc """
@@ -53,7 +65,8 @@ defmodule Valdi do
   """
   @spec validate(any(), keyword()) :: :ok | error
   def validate(value, validators) do
-    validators = sort_validator(validators)
+    validators = prepare_validator(validators)
+
     do_validate(value, validators, :ok)
   end
 
@@ -69,7 +82,7 @@ defmodule Valdi do
 
   @spec validate_list(list(), keyword()) :: :ok | {:error, list()}
   def validate_list(items, validators) do
-    validators = sort_validator(validators)
+    validators = prepare_validator(validators)
 
     items
     |> Enum.with_index()
@@ -107,7 +120,7 @@ defmodule Valdi do
   def validate_map(data, validations_spec) do
     validations_spec
     |> Enum.reduce({:ok, []}, fn {key, validators}, {status, acc} ->
-      validators = sort_validator(validators)
+      validators = prepare_validator(validators)
 
       case do_validate(Map.get(data, key), validators, :ok) do
         :ok -> {status, acc}
@@ -121,8 +134,12 @@ defmodule Valdi do
   end
 
   # prioritize checking
+  # remove unknown validator
   # `required` -> `type` -> others
-  defp sort_validator(validators) do
+  defp prepare_validator(validators) do
+    validators =
+      Enum.filter(validators, fn {key, _} -> Enum.member?(@supported_validations, key) end)
+
     {required, validators} = Keyword.pop(validators, :required, false)
     {type, validators} = Keyword.pop(validators, :type, :any)
     validators = [{:type, type} | validators]
@@ -204,6 +221,10 @@ defmodule Valdi do
   - `atom`
   - `function`
   - `keyword`
+  - `date`
+  - `datetime`
+  - `naive_datetime`
+  - `time`
 
   It can also check extend types
   - `struct` Ex: `User`
@@ -223,6 +244,11 @@ defmodule Valdi do
   def validate_type(value, :function) when is_function(value), do: :ok
   def validate_type(value, :map) when is_map(value), do: :ok
   def validate_type(%Decimal{} = _value, :decimal), do: :ok
+  def validate_type(value, :date), do: validate_type(value, Date)
+  def validate_type(value, :time), do: validate_type(value, Time)
+  def validate_type(value, :datetime), do: validate_type(value, DateTime)
+  def validate_type(value, :utc_datetime), do: validate_type(value, DateTime)
+  def validate_type(value, :naive_datetime), do: validate_type(value, NaiveDateTime)
   def validate_type(_value, :any), do: :ok
 
   def validate_type(value, {:array, type}) when is_list(value) do
@@ -231,6 +257,8 @@ defmodule Valdi do
       _ -> {:error, "is invalid"}
     end
   end
+
+  def validate_type(value, %{} = map), do: validate_map(value, map)
 
   def validate_type([] = _check_item, :keyword), do: :ok
   def validate_type([{atom, _} | _] = _check_item, :keyword) when is_atom(atom), do: :ok
@@ -486,16 +514,16 @@ defmodule Valdi do
   def validate_decimal(value, checks) when is_list(checks) do
     if Decimal.is_decimal(value) do
       Enum.reduce(checks, :ok, fn
-         check, :ok ->
+        check, :ok ->
           validate_decimal(value, check)
-          _, error ->
-            error
+
+        _, error ->
+          error
       end)
     else
       {:error, "must be a Decimal.t() type"}
     end
   end
-
 
   def validate_decimal(decimal, {:equal_to, %Decimal{} = check_value}) do
     if Decimal.eq?(decimal, check_value) do
@@ -552,5 +580,4 @@ defmodule Valdi do
   def validate_decimal(_decimal, {_check, check_value}) do
     {:error, "#{check_value} must be a Decimal.t() type"}
   end
-
 end
