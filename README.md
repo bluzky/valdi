@@ -12,7 +12,7 @@ The package can be installed by adding `valdi` to your list of dependencies in `
 ```elixir
 def deps do
   [
-    {:valdi, "~> 0.2.0"}
+    {:valdi, "~> 0.5.0"}
   ]
 end
 ```
