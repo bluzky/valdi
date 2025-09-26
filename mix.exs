@@ -4,7 +4,7 @@ defmodule Valdi.MixProject do
   def project do
     [
       app: :valdi,
-      version: "0.5.0",
+      version: "0.5.1",
       elixir: "~> 1.10",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
