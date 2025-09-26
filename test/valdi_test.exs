@@ -188,6 +188,28 @@ defmodule ValdiTest do
              Valdi.validate("magic", type: :string, number: [min: 10])
   end
 
+  test "validate number with min/max aliases should work" do
+    assert :ok = Valdi.validate(15, type: :integer, number: [min: 10, max: 20])
+    assert {:error, "must be greater than or equal to 10"} =
+             Valdi.validate(5, type: :integer, number: [min: 10])
+    assert {:error, "must be less than or equal to 20"} =
+             Valdi.validate(25, type: :integer, number: [max: 20])
+  end
+
+  test "validate with flattened min/max syntax" do
+    assert :ok = Valdi.validate(15, type: :integer, min: 10, max: 20)
+    assert {:error, "must be greater than or equal to 10"} =
+             Valdi.validate(5, type: :integer, min: 10)
+    assert {:error, "must be less than or equal to 20"} =
+             Valdi.validate(25, type: :integer, max: 20)
+  end
+
+  test "validate with mixed flattened and nested syntax" do
+    assert :ok = Valdi.validate(15, type: :integer, min: 10, number: [max: 20])
+    assert {:error, "must be greater than or equal to 10"} =
+             Valdi.validate(5, type: :integer, min: 10, number: [max: 20])
+  end
+
   @length_tests [
     [:equal_to, 10, "1231231234", :ok],
     [:equal_to, 10, "12312312345", :error],

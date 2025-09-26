@@ -41,6 +41,8 @@ defmodule Valdi do
     :in,
     :enum,
     :not_in,
+    :min,
+    :max,
     :func,
     :each,
     :decimal
@@ -62,6 +64,8 @@ defmodule Valdi do
   - `length`: validate length of supported types. See `validate_length/2` for more details.
   - `in`|`enum`: validate inclusion
   - `not_in`: validate exclusion
+  - `min`: validate minimum value for numbers
+  - `max`: validate maximum value for numbers
   - `func`: custom validation function follows spec `func(any()):: :ok | {:error, message::String.t()}`
   - `each`: validate each item in list with given validator. Supports all above validator
   """
@@ -181,6 +185,8 @@ defmodule Valdi do
   defp get_validator(:in), do: &validate_inclusion/2
   defp get_validator(:enum), do: &validate_inclusion/2
   defp get_validator(:not_in), do: &validate_exclusion/2
+  defp get_validator(:min), do: &validate_min/2
+  defp get_validator(:max), do: &validate_max/2
   defp get_validator(:each), do: &validate_each_item/2
   defp get_validator(:decimal), do: &validate_decimal/2
 
@@ -510,6 +516,34 @@ defmodule Valdi do
     else
       {:error, "given condition does not implement protocol Enumerable"}
     end
+  end
+
+  @doc """
+  Validate minimum value for numbers.
+
+  ```elixir
+  iex> Valdi.validate(15, type: :integer, min: 10)
+  :ok
+  iex> Valdi.validate(5, type: :integer, min: 10)
+  {:error, "must be greater than or equal to 10"}
+  ```
+  """
+  def validate_min(value, min_value) do
+    validate_number(value, {:min, min_value})
+  end
+
+  @doc """
+  Validate maximum value for numbers.
+
+  ```elixir
+  iex> Valdi.validate(15, type: :integer, max: 20)
+  :ok
+  iex> Valdi.validate(25, type: :integer, max: 20)
+  {:error, "must be less than or equal to 20"}
+  ```
+  """
+  def validate_max(value, max_value) do
+    validate_number(value, {:max, max_value})
   end
 
   @doc """
