@@ -85,6 +85,15 @@ defmodule ValdiTest do
              Valdi.validate("hello", type: :string, in: ~w(ok error))
   end
 
+  test "validate enum with valid value should ok" do
+    assert :ok = Valdi.validate("ok", type: :string, enum: ~w(ok error))
+  end
+
+  test "validate enum with invalid value should error" do
+    assert {:error, "not be in the inclusion list"} =
+             Valdi.validate("hello", type: :string, enum: ~w(ok error))
+  end
+
   test "validate exclusion with valid value should ok" do
     assert :ok = Valdi.validate("hello", type: :string, not_in: ~w(ok error))
   end
@@ -177,6 +186,79 @@ defmodule ValdiTest do
   test "validate number with string should error" do
     assert {:error, "must be a number"} =
              Valdi.validate("magic", type: :string, number: [min: 10])
+  end
+
+  test "validate number with min/max aliases should work" do
+    assert :ok = Valdi.validate(15, type: :integer, number: [min: 10, max: 20])
+    assert {:error, "must be greater than or equal to 10"} =
+             Valdi.validate(5, type: :integer, number: [min: 10])
+    assert {:error, "must be less than or equal to 20"} =
+             Valdi.validate(25, type: :integer, number: [max: 20])
+  end
+
+  test "validate with flattened min/max syntax" do
+    assert :ok = Valdi.validate(15, type: :integer, min: 10, max: 20)
+    assert {:error, "must be greater than or equal to 10"} =
+             Valdi.validate(5, type: :integer, min: 10)
+    assert {:error, "must be less than or equal to 20"} =
+             Valdi.validate(25, type: :integer, max: 20)
+  end
+
+  test "validate with mixed flattened and nested syntax" do
+    assert :ok = Valdi.validate(15, type: :integer, min: 10, number: [max: 20])
+    assert {:error, "must be greater than or equal to 10"} =
+             Valdi.validate(5, type: :integer, min: 10, number: [max: 20])
+  end
+
+  test "validate with flattened greater_than/less_than syntax" do
+    assert :ok = Valdi.validate(15, type: :integer, greater_than: 10, less_than: 20)
+    assert {:error, "must be greater than 10"} =
+             Valdi.validate(10, type: :integer, greater_than: 10)
+    assert {:error, "must be less than 20"} =
+             Valdi.validate(20, type: :integer, less_than: 20)
+  end
+
+  test "validate with flattened length syntax" do
+    # String length validation
+    assert :ok = Valdi.validate("hello", type: :string, min_length: 3, max_length: 10)
+    assert {:error, "length must be greater than or equal to 3"} =
+             Valdi.validate("hi", type: :string, min_length: 3)
+    assert {:error, "length must be less than or equal to 5"} =
+             Valdi.validate("toolong", type: :string, max_length: 5)
+
+    # Array items validation
+    assert :ok = Valdi.validate([1, 2, 3], type: :list, min_items: 2, max_items: 5)
+    assert {:error, "length must be greater than or equal to 3"} =
+             Valdi.validate([1, 2], type: :list, min_items: 3)
+    assert {:error, "length must be less than or equal to 2"} =
+             Valdi.validate([1, 2, 3], type: :list, max_items: 2)
+  end
+
+  test "validate length aliases work for different types" do
+    # min_length/max_length work for all supported types
+    assert :ok = Valdi.validate(%{a: 1, b: 2}, type: :map, min_length: 1, max_length: 3)
+    assert :ok = Valdi.validate({1, 2, 3}, type: :tuple, min_length: 2, max_length: 4)
+
+    # min_items/max_items are aliases for the same functionality
+    assert :ok = Valdi.validate([1, 2], type: :list, min_items: 2, max_items: 2)
+  end
+
+  test "validate mixed length syntax" do
+    # Mix flattened and nested length validation
+    assert :ok = Valdi.validate("test", type: :string, min_length: 3, length: [max: 10])
+    assert {:error, "length must be greater than or equal to 5"} =
+             Valdi.validate("test", type: :string, min_length: 5, length: [max: 10])
+  end
+
+  test "validate without type should skip type validation" do
+    # Without type, any value should pass (only other validations run)
+    assert :ok = Valdi.validate("string", min_length: 3)
+    assert :ok = Valdi.validate(123, min: 100)
+    assert :ok = Valdi.validate([1, 2, 3], min_items: 2)
+
+    # But specific validations should still fail
+    assert {:error, "length must be greater than or equal to 5"} =
+             Valdi.validate("hi", min_length: 5)
   end
 
   @length_tests [
