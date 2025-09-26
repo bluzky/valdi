@@ -31,22 +31,6 @@ defmodule Valdi do
   """
   require Decimal
 
-  @supported_validations [
-    :type,
-    :required,
-    :format,
-    :pattern,
-    :number,
-    :length,
-    :in,
-    :enum,
-    :not_in,
-    :min,
-    :max,
-    :func,
-    :each,
-    :decimal
-  ]
   @type error :: {:error, String.t()}
 
   @doc """
@@ -60,20 +44,45 @@ defmodule Valdi do
   **All supported validations**:
   - `type`: validate datatype
   - `format`|`pattern`: check if binary value matched given regex
-  - `number`: validate number value
+  - `number`: validate number value (supports both regular numbers and Decimal types)
   - `length`: validate length of supported types. See `validate_length/2` for more details.
   - `in`|`enum`: validate inclusion
   - `not_in`: validate exclusion
   - `min`: validate minimum value for numbers
   - `max`: validate maximum value for numbers
+  - `greater_than`: validate value is greater than specified number
+  - `less_than`: validate value is less than specified number
+  - `min_length`: validate minimum length for strings, lists, maps, tuples
+  - `max_length`: validate maximum length for strings, lists, maps, tuples
+  - `min_items`: validate minimum number of items in arrays (alias for min_length)
+  - `max_items`: validate maximum number of items in arrays (alias for max_length)
   - `func`: custom validation function follows spec `func(any()):: :ok | {:error, message::String.t()}`
   - `each`: validate each item in list with given validator. Supports all above validator
+  - `decimal`: validate decimal values (**deprecated**, use `number` instead)
+
+  **Options**:
+  - `ignore_unknown`: when `true`, unknown validators are ignored instead of returning an error (default: `false`)
+
+  ```elixir
+  iex> Valdi.validate("test", [type: :string, unknown_validator: :value], ignore_unknown: true)
+  :ok
+  iex> Valdi.validate("test", [type: :string, unknown_validator: :value], ignore_unknown: false)
+  {:error, "validate_unknown_validator is not supported"}
+  iex> Valdi.validate(15, type: :integer, min: 10, max: 20)
+  :ok
+  iex> Valdi.validate(15, type: :integer, greater_than: 10, less_than: 20)
+  :ok
+  iex> Valdi.validate("hello", type: :string, min_length: 3, max_length: 10)
+  :ok
+  iex> Valdi.validate([1, 2, 3], type: :list, min_items: 2, max_items: 5)
+  :ok
+  ```
   """
   @spec validate(any(), keyword()) :: :ok | error
-  def validate(value, validators) do
+  def validate(value, validators, opts \\ []) do
     validators = prepare_validator(validators)
 
-    do_validate(value, validators, :ok)
+    do_validate(value, validators, :ok, opts)
   end
 
   @doc """
@@ -87,13 +96,13 @@ defmodule Valdi do
   """
 
   @spec validate_list(list(), keyword()) :: :ok | {:error, list()}
-  def validate_list(items, validators) do
+  def validate_list(items, validators, opts \\ []) do
     validators = prepare_validator(validators)
 
     items
     |> Enum.with_index()
     |> Enum.reduce({:ok, []}, fn {value, index}, {status, acc} ->
-      case do_validate(value, validators, :ok) do
+      case do_validate(value, validators, :ok, opts) do
         :ok -> {status, acc}
         {:error, message} -> {:error, [[index, message] | acc]}
       end
@@ -123,12 +132,12 @@ defmodule Valdi do
   ```
   """
   @spec validate_map(map(), map()) :: :ok | {:error, map()}
-  def validate_map(data, validations_spec) do
+  def validate_map(data, validations_spec, opts \\ []) do
     validations_spec
     |> Enum.reduce({:ok, []}, fn {key, validators}, {status, acc} ->
       validators = prepare_validator(validators)
 
-      case do_validate(Map.get(data, key), validators, :ok) do
+      case do_validate(Map.get(data, key), validators, :ok, opts) do
         :ok -> {status, acc}
         {:error, message} -> {:error, [{key, message} | acc]}
       end
@@ -140,57 +149,59 @@ defmodule Valdi do
   end
 
   # prioritize checking
-  # remove unknown validator
   # `required` -> `type` -> others
   defp prepare_validator(validators) do
-    validators =
-      Enum.filter(validators, fn {key, _} -> Enum.member?(@supported_validations, key) end)
-
     {required, validators} = Keyword.pop(validators, :required, false)
     {type, validators} = Keyword.pop(validators, :type, :any)
     validators = [{:type, type} | validators]
     [{:required, required} | validators]
   end
 
-  defp do_validate(_, [], acc), do: acc
+  defp do_validate(_, [], acc, _), do: acc
 
-  defp do_validate(value, [h | t] = _validators, acc) do
-    case do_validate(value, h) do
-      :ok -> do_validate(value, t, acc)
+  defp do_validate(value, [h | t] = _validators, acc, opts) do
+    case do_validate(value, h, opts) do
+      :ok -> do_validate(value, t, acc, opts)
       error -> error
     end
   end
 
   # validate required need to check nil
-  defp do_validate(value, {:required = validator, opts}),
-    do: get_validator(validator).(value, opts)
+  defp do_validate(value, {:required, validator_opts}, _opts), do: validate_required(value, validator_opts)
 
   # other validation is skipped if value is nil
-  defp do_validate(nil, _), do: :ok
-  defp do_validate(value, {:func, func}), do: func.(value)
+  defp do_validate(nil, _, _opts), do: :ok
 
-  defp do_validate(value, {validator, opts}) do
-    case get_validator(validator) do
-      {:error, _} = err -> err
-      validate_func -> validate_func.(value, opts)
+  # pattern match on each validator type
+  defp do_validate(value, {:type, validator_opts}, _opts), do: validate_type(value, validator_opts)
+  defp do_validate(value, {:format, validator_opts}, _opts), do: validate_format(value, validator_opts)
+  defp do_validate(value, {:pattern, validator_opts}, _opts), do: validate_format(value, validator_opts)
+  defp do_validate(value, {:number, validator_opts}, _opts), do: validate_number(value, validator_opts)
+  defp do_validate(value, {:length, validator_opts}, _opts), do: validate_length(value, validator_opts)
+  defp do_validate(value, {:in, validator_opts}, _opts), do: validate_inclusion(value, validator_opts)
+  defp do_validate(value, {:enum, validator_opts}, _opts), do: validate_inclusion(value, validator_opts)
+  defp do_validate(value, {:not_in, validator_opts}, _opts), do: validate_exclusion(value, validator_opts)
+  defp do_validate(value, {:min, min_value}, _opts), do: validate_number(value, [min: min_value])
+  defp do_validate(value, {:max, max_value}, _opts), do: validate_number(value, [max: max_value])
+  defp do_validate(value, {:greater_than, gt_value}, _opts), do: validate_number(value, [greater_than: gt_value])
+  defp do_validate(value, {:less_than, lt_value}, _opts), do: validate_number(value, [less_than: lt_value])
+  defp do_validate(value, {:min_length, min_len}, _opts), do: validate_length(value, [min: min_len])
+  defp do_validate(value, {:max_length, max_len}, _opts), do: validate_length(value, [max: max_len])
+  defp do_validate(value, {:min_items, min_items}, _opts), do: validate_length(value, [min: min_items])
+  defp do_validate(value, {:max_items, max_items}, _opts), do: validate_length(value, [max: max_items])
+  defp do_validate(value, {:each, validator_opts}, opts), do: validate_each_item(value, validator_opts, opts)
+  defp do_validate(value, {:decimal, validator_opts}, _opts), do: validate_decimal(value, validator_opts)
+  defp do_validate(value, {:func, func}, _opts), do: func.(value)
+
+  # catch-all for unknown validators
+  defp do_validate(_value, {validator, _validator_opts}, opts) do
+    if Keyword.get(opts, :ignore_unknown, false) do
+      :ok
+    else
+      {:error, "validate_#{validator} is not supported"}
     end
   end
 
-  defp get_validator(:type), do: &validate_type/2
-  defp get_validator(:required), do: &validate_required/2
-  defp get_validator(:format), do: &validate_format/2
-  defp get_validator(:pattern), do: &validate_format/2
-  defp get_validator(:number), do: &validate_number/2
-  defp get_validator(:length), do: &validate_length/2
-  defp get_validator(:in), do: &validate_inclusion/2
-  defp get_validator(:enum), do: &validate_inclusion/2
-  defp get_validator(:not_in), do: &validate_exclusion/2
-  defp get_validator(:min), do: &validate_min/2
-  defp get_validator(:max), do: &validate_max/2
-  defp get_validator(:each), do: &validate_each_item/2
-  defp get_validator(:decimal), do: &validate_decimal/2
-
-  defp get_validator(name), do: {:error, "validate_#{name} is not support"}
 
   @doc """
   Validate embed types
@@ -330,6 +341,8 @@ defmodule Valdi do
   :ok
   iex> Valdi.validate_number(12, min: 15)
   {:error, "must be greater than or equal to 15"}
+  iex> Valdi.validate_number(Decimal.new("12.5"), min: Decimal.new("10.0"))
+  :ok
   ```
 
   Support conditions
@@ -339,75 +352,114 @@ defmodule Valdi do
   - `less_than`
   - `less_than_or_equal_to` | `max`
 
-      validate_number(x, [min: 10, max: 20])
+  Works with both regular numbers and Decimal types.
   """
-  @spec validate_number(integer() | float(), keyword()) :: :ok | error
-  def validate_number(value, checks) when is_list(checks) do
-    if is_number(value) do
-      checks
-      |> Enum.reduce(:ok, fn
-        check, :ok ->
-          validate_number(value, check)
+  @spec validate_number(integer() | float() | Decimal.t(), keyword()) :: :ok | error
+  def validate_number(value, checks) when is_list(checks) and is_number(value) do
+    Enum.reduce(checks, :ok, fn
+      check, :ok -> validate_number(value, check)
+      _, error -> error
+    end)
+  end
 
-        _, error ->
-          error
+  def validate_number(value, checks) when is_list(checks) and not is_number(value) do
+    if Decimal.is_decimal(value) do
+      Enum.reduce(checks, :ok, fn
+        check, :ok -> validate_number(value, check)
+        _, error -> error
       end)
     else
       {:error, "must be a number"}
     end
   end
 
-  def validate_number(number, {:equal_to, check_value}) do
-    if number == check_value do
-      :ok
-    else
-      {:error, "must be equal to #{check_value}"}
-    end
+  # Number comparisons
+  def validate_number(number, {:equal_to, check_value}) when is_number(number) and is_number(check_value) do
+    if number == check_value, do: :ok, else: {:error, "must be equal to #{check_value}"}
   end
 
-  def validate_number(number, {:greater_than, check_value}) do
-    if number > check_value do
-      :ok
-    else
-      {:error, "must be greater than #{check_value}"}
-    end
+  def validate_number(number, {:greater_than, check_value}) when is_number(number) and is_number(check_value) do
+    if number > check_value, do: :ok, else: {:error, "must be greater than #{check_value}"}
   end
 
-  def validate_number(number, {:greater_than_or_equal_to, check_value}) do
-    if number >= check_value do
+  def validate_number(number, {:greater_than_or_equal_to, check_value}) when is_number(number) and is_number(check_value) do
+    if number >= check_value, do: :ok, else: {:error, "must be greater than or equal to #{check_value}"}
+  end
+
+  def validate_number(number, {:min, check_value}) when is_number(number) and is_number(check_value) do
+    validate_number(number, {:greater_than_or_equal_to, check_value})
+  end
+
+  def validate_number(number, {:less_than, check_value}) when is_number(number) and is_number(check_value) do
+    if number < check_value, do: :ok, else: {:error, "must be less than #{check_value}"}
+  end
+
+  def validate_number(number, {:less_than_or_equal_to, check_value}) when is_number(number) and is_number(check_value) do
+    if number <= check_value, do: :ok, else: {:error, "must be less than or equal to #{check_value}"}
+  end
+
+  def validate_number(number, {:max, check_value}) when is_number(number) and is_number(check_value) do
+    validate_number(number, {:less_than_or_equal_to, check_value})
+  end
+
+  # Decimal comparisons
+  def validate_number(decimal, {:equal_to, %Decimal{} = check_value}) do
+    if Decimal.eq?(decimal, check_value), do: :ok, else: {:error, "must be equal to #{check_value}"}
+  end
+
+  def validate_number(decimal, {:greater_than, %Decimal{} = check_value}) do
+    if Decimal.gt?(decimal, check_value), do: :ok, else: {:error, "must be greater than #{check_value}"}
+  end
+
+  def validate_number(decimal, {:greater_than_or_equal_to, %Decimal{} = check_value}) do
+    if Decimal.gt?(decimal, check_value) or Decimal.eq?(decimal, check_value) do
       :ok
     else
       {:error, "must be greater than or equal to #{check_value}"}
     end
   end
 
-  def validate_number(number, {:min, check_value}) do
-    validate_number(number, {:greater_than_or_equal_to, check_value})
+  def validate_number(decimal, {:min, %Decimal{} = check_value}) do
+    validate_number(decimal, {:greater_than_or_equal_to, check_value})
   end
 
-  def validate_number(number, {:less_than, check_value}) do
-    if number < check_value do
-      :ok
-    else
-      {:error, "must be less than #{check_value}"}
-    end
+  def validate_number(decimal, {:less_than, %Decimal{} = check_value}) do
+    if Decimal.lt?(decimal, check_value), do: :ok, else: {:error, "must be less than #{check_value}"}
   end
 
-  def validate_number(number, {:less_than_or_equal_to, check_value}) do
-    if number <= check_value do
+  def validate_number(decimal, {:less_than_or_equal_to, %Decimal{} = check_value}) do
+    if Decimal.lt?(decimal, check_value) or Decimal.eq?(decimal, check_value) do
       :ok
     else
       {:error, "must be less than or equal to #{check_value}"}
     end
   end
 
-  def validate_number(number, {:max, check_value}) do
-    validate_number(number, {:less_than_or_equal_to, check_value})
+  def validate_number(decimal, {:max, %Decimal{} = check_value}) do
+    validate_number(decimal, {:less_than_or_equal_to, check_value})
   end
 
+  # Error cases
   def validate_number(_number, {check, _check_value}) do
     {:error, "unknown check '#{check}'"}
   end
+
+  @doc """
+  Validate decimal values.
+
+  **Deprecated**: Use `validate_number/2` instead, which now supports both numbers and Decimal types.
+
+  ```elixir
+  # Instead of this (deprecated):
+  Valdi.validate_decimal(Decimal.new("12.5"), min: Decimal.new("10.0"))
+
+  # Use this:
+  Valdi.validate_number(Decimal.new("12.5"), min: Decimal.new("10.0"))
+  ```
+  """
+  @deprecated "Use validate_number/2 instead, which now supports both numbers and Decimal types"
+  @spec validate_decimal(Decimal.t(), keyword()) :: :ok | error
+  def validate_decimal(value, checks), do: validate_number(value, checks)
 
   @doc """
   Check if length of value match given conditions. Length condions are the same with `validate_number/2`
@@ -518,113 +570,16 @@ defmodule Valdi do
     end
   end
 
-  @doc """
-  Validate minimum value for numbers.
-
-  ```elixir
-  iex> Valdi.validate(15, type: :integer, min: 10)
-  :ok
-  iex> Valdi.validate(5, type: :integer, min: 10)
-  {:error, "must be greater than or equal to 10"}
-  ```
-  """
-  def validate_min(value, min_value) do
-    validate_number(value, {:min, min_value})
-  end
-
-  @doc """
-  Validate maximum value for numbers.
-
-  ```elixir
-  iex> Valdi.validate(15, type: :integer, max: 20)
-  :ok
-  iex> Valdi.validate(25, type: :integer, max: 20)
-  {:error, "must be less than or equal to 20"}
-  ```
-  """
-  def validate_max(value, max_value) do
-    validate_number(value, {:max, max_value})
-  end
 
   @doc """
   Apply validation for each array item
   """
-  def validate_each_item(list, validations) do
+  def validate_each_item(list, validations, opts \\ []) do
     if is_list(list) do
-      validate_list(list, validations)
+      validate_list(list, validations, opts)
     else
       {:error, "each validation only support array type"}
     end
   end
 
-  @spec validate_decimal(Decimal.t(), keyword()) :: :ok | error()
-  def validate_decimal(value, checks) when is_list(checks) do
-    if Decimal.is_decimal(value) do
-      Enum.reduce(checks, :ok, fn
-        check, :ok ->
-          validate_decimal(value, check)
-
-        _, error ->
-          error
-      end)
-    else
-      {:error, "must be a Decimal.t() type"}
-    end
-  end
-
-  def validate_decimal(decimal, {:equal_to, %Decimal{} = check_value}) do
-    if Decimal.eq?(decimal, check_value) do
-      :ok
-    else
-      {:error, "must be equal to #{check_value}"}
-    end
-  end
-
-  def validate_decimal(decimal, {:greater_than, %Decimal{} = check_value}) do
-    if Decimal.gt?(decimal, check_value) do
-      :ok
-    else
-      {:error, "must be greater than #{check_value}"}
-    end
-  end
-
-  def validate_decimal(decimal, {:greater_than_or_equal_to, %Decimal{} = check_value}) do
-    if Decimal.gt?(decimal, check_value) or Decimal.eq?(decimal, check_value) do
-      :ok
-    else
-      {:error, "must be greater than or equal to #{check_value}"}
-    end
-  end
-
-  def validate_decimal(decimal, {:min, check_value}) do
-    validate_decimal(decimal, {:greater_than_or_equal_to, check_value})
-  end
-
-  def validate_decimal(decimal, {:less_than, %Decimal{} = check_value}) do
-    if Decimal.lt?(decimal, check_value) do
-      :ok
-    else
-      {:error, "must be lesser than #{check_value}"}
-    end
-  end
-
-  def validate_decimal(decimal, {:less_than_or_equal_to, %Decimal{} = check_value}) do
-    if Decimal.lt?(decimal, check_value) or Decimal.eq?(decimal, check_value) do
-      :ok
-    else
-      {:error, "must be lesser than or equal to #{check_value}"}
-    end
-  end
-
-  def validate_decimal(decimal, {:max, %Decimal{} = check_value}) do
-    validate_decimal(decimal, {:less_than_or_equal_to, check_value})
-  end
-
-  def validate_decimal(_decimal, {check, %Decimal{} = _check_value}) do
-    {:error, "unknown check '#{check}'"}
-  end
-
-  def validate_decimal(_decimal, {_check, check_value}) do
-    {:error, "#{check_value} must be a Decimal.t() type"}
-  end
 end
