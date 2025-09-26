@@ -1,32 +1,101 @@
 defmodule Valdi do
   @moduledoc """
-  Some helpers function to do validate data
-  - Validate type
-  - validate inclusion/exclusion
-  - validate length for string and enumerable types
-  - validate number
-  - validate string format/pattern
-  - validate custom function
-  - validate required (not nil) or not
-  - validate decimal
+  A comprehensive Elixir data validation library that provides flexible and composable validation functions.
 
-  Each of these validations can be used separatedly
+  ## Features
 
+  - **Type validation** - validate data types including numbers, strings, lists, maps, structs, and Decimal types
+  - **Constraint validation** - validate ranges, lengths, formats, and inclusion/exclusion
+  - **Flattened validators** - use convenient aliases like `min`, `max`, `min_length` without nesting
+  - **Pattern matching** - efficient validation dispatch using Elixir's pattern matching
+  - **Composable** - combine multiple validations in a single call
+  - **Backward compatible** - works with existing validation patterns
+  - **Conditional type checking** - skip type validation when not needed for better performance
+
+  ## Quick Examples
+
+  ### Basic validation
   ```elixir
-  iex> Valdi.validate_type(10, :integer)
-  :ok
-  iex> Valdi.validate_type(10, :string)
-  {:error, "is not a string"}
-  iex> Valdi.validate_number(9, [min: 10, max: 20])
-  {:error, "must be greater than or equal to 10"}
+  # Type validation
+  Valdi.validate("hello", type: :string)
+  #=> :ok
+
+  # Constraint validation without type checking
+  Valdi.validate("hello", min_length: 3, max_length: 10)
+  #=> :ok
+
+  # Combined validations
+  Valdi.validate(15, type: :integer, min: 10, max: 20, greater_than: 5)
+  #=> :ok
   ```
 
-  Or you can combine multiple condition at one
+  ### Flattened validators (new!)
   ```elixir
-  iex> Valdi.validate(10, type: :integer, number: [min: 10, max: 20])
-  :ok
-  iex> Valdi.validate("email@g.c", type: :string, format: ~r/.+@.+\.[a-z]{2,10}/)
-  {:error, "does not match format"}
+  # Instead of nested syntax
+  Valdi.validate("test", type: :string, length: [min: 3, max: 10])
+
+  # Use flattened syntax
+  Valdi.validate("test", type: :string, min_length: 3, max_length: 10)
+
+  # Mix both styles
+  Valdi.validate(15, min: 10, number: [max: 20])
+  ```
+
+  ### List and map validation
+  ```elixir
+  # Validate each item in a list
+  Valdi.validate_list([1, 2, 3], type: :integer, min: 0)
+
+  # Validate map with schema
+  schema = %{
+    name: [type: :string, required: true, min_length: 2],
+    age: [type: :integer, min: 0, max: 150],
+    email: [type: :string, format: ~r/.+@.+/]
+  }
+  Valdi.validate_map(%{name: "John", age: 30}, schema)
+  ```
+
+  ## Available Validators
+
+  ### Core validators
+  - `type` - validate data type
+  - `required` - ensure value is not nil
+  - `format`/`pattern` - regex pattern matching
+  - `in`/`enum` - value inclusion validation
+  - `not_in` - value exclusion validation
+  - `func` - custom validation function
+
+  ### Numeric validators
+  - `number` - numeric constraints (nested)
+  - `min` - minimum value (≥)
+  - `max` - maximum value (≤)
+  - `greater_than` - strictly greater than (>)
+  - `less_than` - strictly less than (<)
+
+  ### Length validators
+  - `length` - length constraints (nested)
+  - `min_length` - minimum length
+  - `max_length` - maximum length
+  - `min_items` - minimum array items (alias for min_length)
+  - `max_items` - maximum array items (alias for max_length)
+
+  ### Other validators
+  - `each` - validate each item in arrays
+  - `decimal` - decimal validation (**deprecated**, use `number` instead)
+
+  ## Options
+
+  - `ignore_unknown: true` - skip unknown validators instead of returning errors
+
+  ## Individual Validation Functions
+
+  Each validator can also be used independently:
+
+  ```elixir
+  Valdi.validate_type("hello", :string)
+  Valdi.validate_number(15, min: 10, max: 20)
+  Valdi.validate_length("hello", min: 3, max: 10)
+  Valdi.validate_inclusion("red", ["red", "green", "blue"])
   ```
   """
   require Decimal
