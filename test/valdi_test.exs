@@ -108,6 +108,38 @@ defmodule ValdiTest do
              Valdi.validate(10, type: :integer, format: ~r/year:\s\d{4}/)
   end
 
+  test "validate pattern with match string should ok" do
+    assert :ok = Valdi.validate("year: 1999", type: :string, pattern: ~r/year:\s\d{4}/)
+  end
+
+  test "validate pattern with not match string should error" do
+    assert {:error, "does not match format"} =
+             Valdi.validate("", type: :string, pattern: ~r/year:\s\d{4}/)
+  end
+
+  test "validate pattern with number should error" do
+    assert {:error, "format check only support string"} =
+             Valdi.validate(10, type: :integer, pattern: ~r/year:\s\d{4}/)
+  end
+
+  test "validate format with string pattern should ok" do
+    assert :ok = Valdi.validate("hello world", type: :string, format: "h.*d")
+  end
+
+  test "validate format with string pattern not match should error" do
+    assert {:error, "does not match format"} =
+             Valdi.validate("hello", type: :string, format: "\\d+")
+  end
+
+  test "validate format with invalid string pattern should error" do
+    assert {:error, "invalid regex pattern"} =
+             Valdi.validate("hello", type: :string, format: "[")
+  end
+
+  test "validate pattern with string pattern should ok" do
+    assert :ok = Valdi.validate("test123", type: :string, pattern: "test\\d+")
+  end
+
   @number_tests [
     [:equal_to, 10, 10, :ok],
     [:equal_to, 10, 11, :error],
