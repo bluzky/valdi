@@ -35,6 +35,7 @@ defmodule Valdi do
     :type,
     :required,
     :format,
+    :pattern,
     :number,
     :length,
     :in,
@@ -55,7 +56,7 @@ defmodule Valdi do
 
   **All supported validations**:
   - `type`: validate datatype
-  - `format`: check if binary value matched given regex
+  - `format`|`pattern`: check if binary value matched given regex
   - `number`: validate number value
   - `length`: validate length of supported types. See `validate_length/2` for more details.
   - `in`: validate inclusion
@@ -173,6 +174,7 @@ defmodule Valdi do
   defp get_validator(:type), do: &validate_type/2
   defp get_validator(:required), do: &validate_required/2
   defp get_validator(:format), do: &validate_format/2
+  defp get_validator(:pattern), do: &validate_format/2
   defp get_validator(:number), do: &validate_number/2
   defp get_validator(:length), do: &validate_length/2
   defp get_validator(:in), do: &validate_inclusion/2
@@ -439,17 +441,26 @@ defmodule Valdi do
   defp get_length(_param), do: {:error, :wrong_type}
 
   @doc """
-  Checks whether a string match the given regex.
+  Checks whether a string match the given regex pattern.
 
   ```elixir
   iex> Valdi.validate_format("year: 2001", ~r/year:\\s\\d{4}/)
   :ok
   iex> Valdi.validate_format("hello", ~r/\d+/)
   {:error, "does not match format"}
+  iex> Valdi.validate_format("hello", "h.*o")
+  :ok
   ```
   """
-  @spec validate_format(String.t(), Regex.t()) ::
+  @spec validate_format(String.t(), Regex.t() | String.t()) ::
           :ok | error
+  def validate_format(value, check) when is_binary(value) and is_binary(check) do
+    case Regex.compile(check) do
+      {:ok, regex} -> validate_format(value, regex)
+      {:error, _} -> {:error, "invalid regex pattern"}
+    end
+  end
+
   def validate_format(value, check) when is_binary(value) do
     if Regex.match?(check, value), do: :ok, else: {:error, "does not match format"}
   end
