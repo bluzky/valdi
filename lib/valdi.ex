@@ -76,6 +76,8 @@ defmodule Valdi do
   :ok
   iex> Valdi.validate([1, 2, 3], type: :list, min_items: 2, max_items: 5)
   :ok
+  iex> Valdi.validate("hello", min_length: 3)
+  :ok
   ```
   """
   @spec validate(any(), keyword()) :: :ok | error
@@ -152,8 +154,9 @@ defmodule Valdi do
   # `required` -> `type` -> others
   defp prepare_validator(validators) do
     {required, validators} = Keyword.pop(validators, :required, false)
-    {type, validators} = Keyword.pop(validators, :type, :any)
-    validators = [{:type, type} | validators]
+    {type, validators} = Keyword.pop(validators, :type)
+
+    validators = if type, do: [{:type, type} | validators], else: validators
     [{:required, required} | validators]
   end
 

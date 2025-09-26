@@ -250,6 +250,17 @@ defmodule ValdiTest do
              Valdi.validate("test", type: :string, min_length: 5, length: [max: 10])
   end
 
+  test "validate without type should skip type validation" do
+    # Without type, any value should pass (only other validations run)
+    assert :ok = Valdi.validate("string", min_length: 3)
+    assert :ok = Valdi.validate(123, min: 100)
+    assert :ok = Valdi.validate([1, 2, 3], min_items: 2)
+
+    # But specific validations should still fail
+    assert {:error, "length must be greater than or equal to 5"} =
+             Valdi.validate("hi", min_length: 5)
+  end
+
   @length_tests [
     [:equal_to, 10, "1231231234", :ok],
     [:equal_to, 10, "12312312345", :error],
