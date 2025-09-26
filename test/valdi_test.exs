@@ -85,6 +85,15 @@ defmodule ValdiTest do
              Valdi.validate("hello", type: :string, in: ~w(ok error))
   end
 
+  test "validate enum with valid value should ok" do
+    assert :ok = Valdi.validate("ok", type: :string, enum: ~w(ok error))
+  end
+
+  test "validate enum with invalid value should error" do
+    assert {:error, "not be in the inclusion list"} =
+             Valdi.validate("hello", type: :string, enum: ~w(ok error))
+  end
+
   test "validate exclusion with valid value should ok" do
     assert :ok = Valdi.validate("hello", type: :string, not_in: ~w(ok error))
   end

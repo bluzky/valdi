@@ -39,6 +39,7 @@ defmodule Valdi do
     :number,
     :length,
     :in,
+    :enum,
     :not_in,
     :func,
     :each,
@@ -59,7 +60,7 @@ defmodule Valdi do
   - `format`|`pattern`: check if binary value matched given regex
   - `number`: validate number value
   - `length`: validate length of supported types. See `validate_length/2` for more details.
-  - `in`: validate inclusion
+  - `in`|`enum`: validate inclusion
   - `not_in`: validate exclusion
   - `func`: custom validation function follows spec `func(any()):: :ok | {:error, message::String.t()}`
   - `each`: validate each item in list with given validator. Supports all above validator
@@ -178,6 +179,7 @@ defmodule Valdi do
   defp get_validator(:number), do: &validate_number/2
   defp get_validator(:length), do: &validate_length/2
   defp get_validator(:in), do: &validate_inclusion/2
+  defp get_validator(:enum), do: &validate_inclusion/2
   defp get_validator(:not_in), do: &validate_exclusion/2
   defp get_validator(:each), do: &validate_each_item/2
   defp get_validator(:decimal), do: &validate_decimal/2
