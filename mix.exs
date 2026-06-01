@@ -56,7 +56,7 @@ defmodule Valdi.MixProject do
     [
       {:ex_doc, "~> 0.30", only: :dev, runtime: false},
       {:excoveralls, "~> 0.18", only: :test},
-      {:decimal, "~> 2.1"}
+      {:decimal, "~> 3.0"}
     ]
   end
 end
