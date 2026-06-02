@@ -157,7 +157,7 @@ defmodule Valdi do
   end
 
   @doc """
-  Validate list value aganst validator and return error if any item is not valid.
+  Validate list value against validator and return error if any item is not valid.
   In case of error `{:error, errors}`, `errors` is list of error detail for all error item includes `[index, message]`
 
   ```elixir
@@ -276,7 +276,18 @@ defmodule Valdi do
 
 
   @doc """
-  Validate embed types
+  Validate embedded types using a module's `validate/2` callback.
+
+  Accepts an `{:embed, module, params}` tuple where `module` must implement `validate/2`.
+  Also supports `{:array, {:embed, module, params}}` to validate a list of embedded values.
+
+  ```elixir
+  # Single embedded struct
+  Valdi.validate_embed(%MyStruct{}, {:embed, MyStruct, [field: [type: :string]]})
+
+  # Array of embedded structs
+  Valdi.validate_embed([%MyStruct{}], {:array, {:embed, MyStruct, [field: [type: :string]]}})
+  ```
   """
   def validate_embed(value, embed_type)
 
@@ -322,6 +333,7 @@ defmodule Valdi do
   It can also check extend types
   - `struct` Ex: `User`
   - `{:array, type}` : array of type
+  - `%{key: validators}` : inline map validation spec (delegates to `validate_map/3`)
   """
 
   def validate_type(value, :boolean) when is_boolean(value), do: :ok
@@ -355,7 +367,6 @@ defmodule Valdi do
 
   def validate_type([] = _check_item, :keyword), do: :ok
   def validate_type([{atom, _} | _] = _check_item, :keyword) when is_atom(atom), do: :ok
-  # def validate_type(value, struct_name) when is_struct(value, struct_name), do: :ok
   def validate_type(%{__struct__: struct}, struct_name) when struct == struct_name, do: :ok
   def validate_type(_, type) when is_tuple(type), do: {:error, "is not an array"}
   def validate_type(_, type), do: {:error, "is not a #{type}"}
@@ -511,6 +522,13 @@ defmodule Valdi do
     validate_number(decimal, {:less_than_or_equal_to, check_value})
   end
 
+  # Decimal value with a non-Decimal check value — type mismatch
+  def validate_number(%Decimal{} = _value, {check, check_value})
+      when check in [:equal_to, :greater_than, :greater_than_or_equal_to, :min, :less_than, :less_than_or_equal_to, :max]
+      and not is_struct(check_value, Decimal) do
+    {:error, "check value for '#{check}' must be a Decimal when validating a Decimal number"}
+  end
+
   # Error cases
   def validate_number(_number, {check, _check_value}) do
     {:error, "unknown check '#{check}'"}
@@ -610,7 +628,7 @@ defmodule Valdi do
   iex> Valdi.validate_inclusion(1, {1, 2})
   {:error, "given condition does not implement protocol Enumerable"}
   iex> Valdi.validate_inclusion(1, %{a: 1, b: 2})
-  {:error, "not be in the inclusion list"}
+  {:error, "must be in the inclusion list"}
   iex> Valdi.validate_inclusion({:a, 1}, %{a: 1, b: 2})
   :ok
   ```
@@ -620,7 +638,7 @@ defmodule Valdi do
       if Enum.member?(enum, value) do
         :ok
       else
-        {:error, "not be in the inclusion list"}
+        {:error, "must be in the inclusion list"}
       end
     else
       {:error, "given condition does not implement protocol Enumerable"}

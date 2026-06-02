@@ -21,7 +21,7 @@ defmodule ValdiTest do
     [:number, 10, :ok],
     [:number, "123", :error],
     [:tuple, {1, 2}, :ok],
-    [:tupple, [1, 2], :error],
+    [:tuple, [], :error],
     [:map, %{name: "Bluz"}, :ok],
     [:map, %{"name" => "Bluz"}, :ok],
     [:map, [], :error],
@@ -81,7 +81,7 @@ defmodule ValdiTest do
   end
 
   test "validate inclusion with invalid value should error" do
-    assert {:error, "not be in the inclusion list"} =
+    assert {:error, "must be in the inclusion list"} =
              Valdi.validate("hello", type: :string, in: ~w(ok error))
   end
 
@@ -90,7 +90,7 @@ defmodule ValdiTest do
   end
 
   test "validate enum with invalid value should error" do
-    assert {:error, "not be in the inclusion list"} =
+    assert {:error, "must be in the inclusion list"} =
              Valdi.validate("hello", type: :string, enum: ~w(ok error))
   end
 
@@ -400,7 +400,7 @@ defmodule ValdiTest do
     [:max, Decimal.new("10.0"), Decimal.new("10.0"), :ok],
     [:max, Decimal.new("10.0"), Decimal.new("11.0"), :error],
     [:unknown_check, Decimal.new("10.0"), Decimal.new("11.0"), :error],
-    [:min, 11, Decimal.new("11.0"), :error]
+    [:min, 11, Decimal.new("11.0"), :error]  # non-Decimal check value → type mismatch error
   ]
   test "validate decimal" do
     for [condition, value, actual_value, expect] <- @decimal_tests do
